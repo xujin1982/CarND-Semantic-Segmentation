@@ -7,7 +7,7 @@
 3. The function `optimize` is implemented correctly.
 4. The function `train_nn` is implemented correctly. The loss of the network is printed while the network is training.
 
-####Neural Network Training
+#### Neural Network Training
 1. On average, the model decreases loss over time.
 2. The number of epoch and batch size are set to a reasonable number. The number of epoch is set to 50 and the number of batch is set to 8. The loss value was dereased to 0.026 at epoch 50.
 3. The project labels most pixels of roads close to the best solution. 
@@ -17,6 +17,7 @@
 <video width="320" height="240" controls>
   <source src="new_file.mp4" type="video/mp4">
 </video>
+[Link of the video](https://youtu.be/5-3WLwr9g8s)
 
 ### Introduction
 In this project, you'll label the pixels of a road in images using a Fully Convolutional Network (FCN).
