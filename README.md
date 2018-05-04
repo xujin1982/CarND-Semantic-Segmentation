@@ -1,3 +1,8 @@
+[//]: # (Image References)
+[image1]: ./um_000047.png
+[image2]: ./um_000088.png
+[image3]: ./umm_000038.png
+
 # Semantic Segmentation
 
 ### Rubics
@@ -11,7 +16,9 @@
 1. On average, the model decreases loss over time.
 2. The number of epoch and batch size are set to a reasonable number. The number of epoch is set to 50 and the number of batch is set to 8. The loss value was dereased to 0.026 at epoch 50.
 3. The project labels most pixels of roads close to the best solution. 
-
+![alt text][image1]
+![alt text][image2]
+![alt text][image3]
 #### OPTIONAL: Video for the testing pictures
 
 <video width="320" height="240" controls>
