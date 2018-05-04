@@ -1,9 +1,19 @@
+
+# coding: utf-8
+
+# In[1]:
+
+
 import os.path
 import tensorflow as tf
+from moviepy.editor import ImageSequenceClip
 import helper
 import warnings
 from distutils.version import LooseVersion
 import project_tests as tests
+
+
+# In[2]:
 
 
 # Check TensorFlow Version
@@ -15,6 +25,9 @@ if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
 else:
     print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+
+
+# In[3]:
 
 
 def load_vgg(sess, vgg_path):
@@ -45,6 +58,9 @@ def load_vgg(sess, vgg_path):
 tests.test_load_vgg(load_vgg, tf)
 
 
+# In[4]:
+
+
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
@@ -55,8 +71,44 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # TODO: Implement function
-    return None
+    
+    # Encoder layer 7
+    conv_1x1_layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same',
+                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_initializer= tf.truncated_normal_initializer(stddev=0.01))
+    # Decoder layer 7
+    upsampling_layer7 = tf.layers.conv2d_transpose(conv_1x1_layer7, num_classes, 4, 2, padding='same',
+                                                   kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    
+    # Encoder layer 4
+    conv_1x1_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
+                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_initializer= tf.truncated_normal_initializer(stddev=0.01))
+    
+    # Skip Connections of layer 7 and layer 4 
+    skip_7_4 = tf.add(conv_1x1_layer4, upsampling_layer7)
+    
+    # Decoder layer 7 & 4
+    upsampling_skip_7_4 = tf.layers.conv2d_transpose(skip_7_4, num_classes, 4, 2, padding='same',
+                                                     kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    
+    # Encoder layer 3
+    conv_1x1_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
+                                       kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                       kernel_initializer= tf.truncated_normal_initializer(stddev=0.01))
+    
+    # Skip Connections of layer 7, layer 4 and layer 3
+    skip_7_4_3 = tf.add(upsampling_skip_7_4, conv_1x1_layer3)
+    
+    # Decoder layer 7, 4 & 3
+    output = tf.layers.conv2d_transpose(skip_7_4_3, num_classes, 16, 8, padding='same',
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    return output
+
 tests.test_layers(layers)
+
+
+# In[5]:
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -69,8 +121,20 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     :return: Tuple of (logits, train_op, cross_entropy_loss)
     """
     # TODO: Implement function
-    return None, None, None
+    logits = tf.reshape(nn_last_layer,(-1, num_classes))
+    
+    correct_label = tf.reshape(correct_label, (-1,num_classes))    
+    cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=correct_label))  
+    
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)    
+    train_op = optimizer.minimize(cross_entropy_loss)
+    
+    return logits, train_op, cross_entropy_loss
+
 tests.test_optimize(optimize)
+
+
+# In[6]:
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
@@ -89,8 +153,27 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param learning_rate: TF Placeholder for learning rate
     """
     # TODO: Implement function
-    pass
+    
+    
+    print('Start training...')
+    for i in range(epochs):
+        print('Epoch {}...'.format(i+1))
+        loss_epoch = 0.0
+        num = 0
+        for image, label in get_batches_fn(batch_size):
+            _, loss = sess.run([train_op, cross_entropy_loss], 
+                               feed_dict={input_image: image, correct_label: label, 
+                                          keep_prob: 0.5, learning_rate: 0.0005})
+            loss_epoch += loss
+            num += 1
+        
+        print('Loss of epoch {0} = {1:3f}'.format(i+1, loss_epoch/num))
+    
+    
 tests.test_train_nn(train_nn)
+
+
+# In[7]:
 
 
 def run():
@@ -117,14 +200,35 @@ def run():
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
         # TODO: Build NN using load_vgg, layers, and optimize function
+        epchos = 50
+        batch_size = 8
+        
+        correct_label = tf.placeholder(tf.float32, [None, None, None, num_classes], name='correct_label')
+        learning_rate = tf.placeholder(tf.float32, name='learning_rate')
+        
+        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
+        
+        nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
+        
+        logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate, num_classes)
 
         # TODO: Train NN using the train_nn function
+        sess.run(tf.global_variables_initializer())
+        train_nn(sess, epchos, batch_size, get_batches_fn, train_op, cross_entropy_loss, 
+                 input_image, correct_label, keep_prob, learning_rate)
 
         # TODO: Save inference data using helper.save_inference_samples
-        #  helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
-        # OPTIONAL: Apply the trained model to a video
-
+#         # OPTIONAL: Apply the trained model to a video
+        files = os.listdir('./runs/1/')
+        files.sort()
+        files = ['./runs/1/' + x for x in files]
+        clip = ImageSequenceClip(files, fps = 5)
+        print('Start writing a video')
+        clip.write_videofile("./runs/new_file.mp4") 
+        print('Done!')
 
 if __name__ == '__main__':
     run()
+
